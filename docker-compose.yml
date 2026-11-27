@@ -153,17 +153,17 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      LISTEN: 0.0.0.0:8080
+      LISTEN: 0.0.0.0:18080
     volumes:
       - lab-data:/data
       - lab-logs:/logs
     ports:
-      - "8080:8080"
+      - "18080:18080"
     depends_on:
       deploy:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8080/api/health"]
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:18080/api/health"]
       interval: 10s
       timeout: 5s
       retries: 20

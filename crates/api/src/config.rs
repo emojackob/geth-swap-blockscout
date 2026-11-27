@@ -40,7 +40,7 @@ pub struct Config {
 
 impl Config {
     /// `LISTEN` is the only environment variable this process reads.
-    /// Example: `0.0.0.0:8080`.
+    /// Example: `0.0.0.0:18080`.
     pub async fn load() -> Self {
         let bind = listen_addr();
         let (siwe_scheme, siwe_domain, siwe_uri) = public_origin(bind);
@@ -83,9 +83,9 @@ impl Config {
 }
 
 fn listen_addr() -> SocketAddr {
-    let raw = env::var("LISTEN").unwrap_or_else(|_| "0.0.0.0:8080".into());
+    let raw = env::var("LISTEN").unwrap_or_else(|_| "0.0.0.0:18080".into());
     raw.parse().unwrap_or_else(|_| {
-        panic!("LISTEN must be a single host:port value, for example 0.0.0.0:8080 (got {raw})")
+        panic!("LISTEN must be a single host:port value, for example 0.0.0.0:18080 (got {raw})")
     })
 }
 
@@ -207,10 +207,10 @@ mod tests {
 
     #[test]
     fn unspecified_bind_uses_localhost_origin() {
-        let bind: SocketAddr = "0.0.0.0:8080".parse().unwrap();
+        let bind: SocketAddr = "0.0.0.0:18080".parse().unwrap();
         let (scheme, domain, uri) = public_origin(bind);
         assert_eq!(scheme, "http");
-        assert_eq!(domain, "localhost:8080");
-        assert_eq!(uri, "http://localhost:8080");
+        assert_eq!(domain, "localhost:18080");
+        assert_eq!(uri, "http://localhost:18080");
     }
 }
