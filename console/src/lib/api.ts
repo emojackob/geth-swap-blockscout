@@ -67,7 +67,15 @@ export type FaucetInfo = {
   labBalance: string | null;
   presets: string[];
   maxPerRequest: string;
+  confirmAbove: string;
   recent: Activity[];
+};
+
+export type LabSettings = {
+  admins: string[];
+  faucetPresets: string[];
+  faucetMax: string;
+  faucetConfirmAbove: string;
 };
 
 export type DevAccount = {
@@ -137,6 +145,11 @@ export const api = {
     ),
   contracts: () => apiGet<{ deployments: Deployments | null }>("/api/admin/contracts"),
   accounts: () => apiGet<DevAccount[]>("/api/admin/accounts"),
+  settings: () => apiGet<LabSettings>("/api/admin/settings"),
+  saveSettings: (body: Pick<LabSettings, "faucetPresets" | "faucetMax" | "faucetConfirmAbove">) =>
+    apiSend<LabSettings>("/api/admin/settings", body, "PUT"),
+  addAdmin: (address: string) => apiSend<LabSettings>("/api/admin/admins", { address }),
+  removeAdmin: (address: string) => apiSend<LabSettings>("/api/admin/admins", { address }, "DELETE"),
   logs: (service: string, q: string) =>
     apiGet<{ service: string; present: boolean; lines: string }>(
       `/api/admin/logs?service=${encodeURIComponent(service)}&q=${encodeURIComponent(q)}&lines=300`,

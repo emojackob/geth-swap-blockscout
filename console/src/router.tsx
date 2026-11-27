@@ -6,6 +6,7 @@ import { Contracts } from "./pages/Contracts";
 import { Faucet } from "./pages/Faucet";
 import { Logs } from "./pages/Logs";
 import { Overview } from "./pages/Overview";
+import { Settings } from "./pages/Settings";
 import { SignIn } from "./pages/SignIn";
 import { Swap } from "./pages/Swap";
 
@@ -68,9 +69,16 @@ const logsRoute = createRoute({
   component: Logs,
 });
 
+const settingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/settings",
+  beforeLoad: requireSession,
+  component: Settings,
+});
+
 const routeTree = rootRoute.addChildren([
   signInRoute,
-  shellRoute.addChildren([overviewRoute, faucetRoute, swapRoute, contractsRoute, logsRoute]),
+  shellRoute.addChildren([overviewRoute, faucetRoute, swapRoute, contractsRoute, logsRoute, settingsRoute]),
 ]);
 
 export const queryClient = new QueryClient({

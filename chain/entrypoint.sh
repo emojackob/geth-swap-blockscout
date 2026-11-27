@@ -4,15 +4,15 @@
 # (init_holders.js: "only use in dev"). It is not a secret.
 set -euo pipefail
 
-GETH="${GETH_BIN:-/usr/local/bin/geth}"
-DATADIR="${DATADIR:-/data}"
-GENESIS="${GENESIS:-/lab/genesis.json}"
-PASSWORD="${PASSWORD_FILE:-/lab/password.txt}"
-KEYFILE="${VALIDATOR_KEY_FILE:-/lab/validator.key}"
-VALIDATOR="${VALIDATOR_ADDRESS:-0x9fB29AAc15b9A4B7F17c3385939b007540f4d791}"
-CHAIN_ID="${CHAIN_ID:-56056}"
-CACHE="${GETH_CACHE:-512}"
-LOG="${GETH_LOG:-/logs/geth.log}"
+GETH=/usr/local/bin/geth
+DATADIR=/data
+GENESIS=/lab/genesis.json
+PASSWORD=/lab/password.txt
+KEYFILE=/lab/validator.key
+VALIDATOR=0x9fB29AAc15b9A4B7F17c3385939b007540f4d791
+CHAIN_ID=56056
+CACHE=512
+LOG=/logs/geth.log
 
 mkdir -p "$DATADIR" "$(dirname "$LOG")"
 touch "$LOG"

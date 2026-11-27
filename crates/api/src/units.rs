@@ -47,10 +47,6 @@ pub fn format_units(value: U256, decimals: u32) -> String {
     format!("{whole}.{frac_str}")
 }
 
-pub fn max_per_request() -> U256 {
-    U256::from(1_000_000u64) * U256::from(10u64).pow(U256::from(18u32))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

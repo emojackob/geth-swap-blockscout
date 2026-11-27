@@ -3,14 +3,10 @@ mod chain;
 mod config;
 mod error;
 mod models;
+mod settings;
 mod units;
 
-use std::{
-    collections::HashSet,
-    net::SocketAddr,
-    sync::Arc,
-    time::Duration,
-};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use alloy::primitives::{Address, U256};
 use axum::{
@@ -23,7 +19,6 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha512};
 use time::OffsetDateTime;
 use tokio::net::TcpListener;
 use tower_http::{
@@ -47,13 +42,14 @@ use crate::{
     config::Config,
     error::ApiError,
     models::{Activity, DevAccount, FaucetRequest, SiweMessageRequest, VerifyRequest},
-    units::{format_units, max_per_request, parse_units},
+    settings::Settings,
+    units::{format_units, parse_units},
 };
 
 struct AppState {
     cfg: Config,
     chain: Chain,
-    allowlist: tokio::sync::Mutex<HashSet<String>>,
+    settings: Arc<Settings>,
 }
 
 #[tokio::main]
@@ -61,28 +57,16 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive("lab_api=info".parse().unwrap()))
         .init();
-    let cfg = Config::from_env().expect("configuration");
+    let cfg = Config::load().await;
     let chain = Chain::new(cfg.rpc_url.clone(), &cfg.faucet_key).expect("faucet key");
-    let mut allowlist: HashSet<String> = cfg
-        .admin_addresses
-        .iter()
-        .filter_map(|s| parse_address(s).ok())
-        .map(|a| format!("{a:x}"))
-        .collect();
-    if cfg.dev_allow_open_admin {
-        for extra in cfg.load_open_allowlist() {
-            allowlist.insert(extra.to_ascii_lowercase());
-        }
-        tracing::warn!("DEV_ALLOW_OPEN_ADMIN is on. The first successful SIWE address will be persisted as an admin. Do not use this outside a private lab.");
-    }
+    let settings = Settings::load(&cfg.data_dir);
     let state = Arc::new(AppState {
         cfg: cfg.clone(),
         chain,
-        allowlist: tokio::sync::Mutex::new(allowlist),
+        settings,
     });
 
-    let digest = Sha512::digest(cfg.session_secret.as_bytes());
-    let key = Key::try_from(digest.as_ref()).expect("session key");
+    let key = Key::try_from(cfg.session_key().as_slice()).expect("session key");
     let session_layer = SessionManagerLayer::new(MemoryStore::default())
         .with_name("id")
         .with_secure(cfg.cookie_secure)
@@ -136,6 +120,8 @@ async fn main() {
         .route("/api/admin/contracts", get(contracts))
         .route("/api/admin/accounts", get(accounts))
         .route("/api/admin/logs", get(logs))
+        .route("/api/admin/settings", get(get_settings).put(put_settings))
+        .route("/api/admin/admins", post(add_admin).delete(remove_admin))
         .route_layer(from_fn_with_state(state.clone(), require_admin));
 
     let public = Router::new()
@@ -172,7 +158,7 @@ fn cors_layer(cfg: &Config) -> CorsLayer {
     CorsLayer::new()
         .allow_origin(AllowOrigin::exact(origin))
         .allow_credentials(true)
-        .allow_methods([Method::GET, Method::POST])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers([axum::http::header::CONTENT_TYPE])
 }
 
@@ -210,14 +196,14 @@ async fn status(State(state): State<Arc<AppState>>) -> Json<Value> {
                 "syncing": s.syncing,
                 "faucetNative": native.map(|v| format_units(v, 18)),
                 "faucetLab": lab.map(|v| format_units(v, 18)),
-                "blockscout": probe_blockscout(&state.cfg.blockscout_internal_url).await,
+                "blockscout": config::blockscout_status().await,
             }))
         }
         Err(err) => Json(json!({
             "reachable": false,
             "error": err.to_string(),
             "chainId": state.cfg.chain_id,
-            "blockscout": probe_blockscout(&state.cfg.blockscout_internal_url).await,
+            "blockscout": config::blockscout_status().await,
         })),
     }
 }
@@ -253,7 +239,7 @@ async fn verify(
     require_origin(&headers, &state.cfg)?;
     let result = verify_login(
         &state.cfg,
-        &state.allowlist,
+        &state.settings,
         &session,
         &body.message,
         &body.signature,
@@ -282,6 +268,7 @@ async fn faucet_info(State(state): State<Arc<AppState>>) -> Json<Value> {
     let native = state.chain.balance(state.chain.faucet).await.ok();
     let lab = lab_balance(&state).await.ok();
     let recent = recent_faucet(&state);
+    let settings = state.settings.snapshot().await;
     Json(json!({
         "nativeSymbol": "BNB",
         "labSymbol": "LAB",
@@ -289,8 +276,9 @@ async fn faucet_info(State(state): State<Arc<AppState>>) -> Json<Value> {
         "faucetAddress": format!("{}", state.chain.faucet),
         "nativeBalance": native.map(|v| format_units(v, 18)),
         "labBalance": lab.map(|v| format_units(v, 18)),
-        "presets": ["100", "1000", "10000"],
-        "maxPerRequest": "1000000",
+        "presets": settings.faucet_presets,
+        "maxPerRequest": settings.faucet_max,
+        "confirmAbove": settings.faucet_confirm_above,
         "recent": recent,
     }))
 }
@@ -301,10 +289,13 @@ async fn faucet_send(
 ) -> Result<Json<Value>, ApiError> {
     let to = parse_address(&body.address)?;
     let amount = parse_units(&body.amount, 18).map_err(ApiError::BadRequest)?;
-    if amount > max_per_request() {
-        return Err(ApiError::BadRequest(
-            "The largest single send is 1,000,000. Split it into more than one request.".into(),
-        ));
+    let settings = state.settings.snapshot().await;
+    let max = parse_units(&settings.faucet_max, 18).map_err(ApiError::BadRequest)?;
+    if amount > max {
+        return Err(ApiError::BadRequest(format!(
+            "The largest single send is {}. An admin can raise it in Settings.",
+            settings.faucet_max
+        )));
     }
     let asset = body.asset.to_ascii_lowercase();
     let hash = match asset.as_str() {
@@ -521,18 +512,46 @@ fn recent_faucet(state: &AppState) -> Vec<Activity> {
     items
 }
 
-async fn probe_blockscout(url: &str) -> &'static str {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(2))
-        .build()
-        .ok();
-    let Some(client) = client else {
-        return "unknown";
-    };
-    let probe = format!("{}/api/v2/stats", url.trim_end_matches('/'));
-    match client.get(probe).send().await {
-        Ok(resp) if resp.status().is_success() => "up",
-        Ok(_) => "starting",
-        Err(_) => "down",
-    }
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SettingsBody {
+    faucet_presets: Vec<String>,
+    faucet_max: String,
+    faucet_confirm_above: String,
+}
+
+#[derive(Deserialize)]
+struct AddressBody {
+    address: String,
+}
+
+async fn get_settings(State(state): State<Arc<AppState>>) -> Json<crate::settings::LabSettings> {
+    Json(state.settings.snapshot().await)
+}
+
+async fn put_settings(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<SettingsBody>,
+) -> Result<Json<crate::settings::LabSettings>, ApiError> {
+    state
+        .settings
+        .update_faucet(body.faucet_presets, body.faucet_max, body.faucet_confirm_above)
+        .await
+        .map(Json)
+}
+
+async fn add_admin(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<AddressBody>,
+) -> Result<Json<crate::settings::LabSettings>, ApiError> {
+    let address = parse_address(&body.address)?;
+    state.settings.add_admin(address).await.map(Json)
+}
+
+async fn remove_admin(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<AddressBody>,
+) -> Result<Json<crate::settings::LabSettings>, ApiError> {
+    let address = parse_address(&body.address)?;
+    state.settings.remove_admin(address).await.map(Json)
 }

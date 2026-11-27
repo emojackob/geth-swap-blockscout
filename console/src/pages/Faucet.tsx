@@ -45,10 +45,10 @@ export function Faucet() {
   const amount = form.watch("amount");
   const asset = form.watch("asset");
   const symbol = asset === "lab" ? "LAB" : "BNB";
-  const large = Number(amount) > 10000;
+  const confirmAbove = Number(info.data?.confirmAbove ?? "10000");
 
   function submit(values: FormValues) {
-    if (Number(values.amount) > 10000) setConfirming(values);
+    if (Number(values.amount) > confirmAbove) setConfirming(values);
     else send.mutate(values);
   }
 
@@ -131,7 +131,6 @@ export function Faucet() {
                 Send {formatAmount(confirming.amount)} {confirming.asset === "lab" ? "LAB" : "BNB"}
               </Button>
             </div>
-            {large ? null : null}
           </div>
         ) : null}
       </Modal>
