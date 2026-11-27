@@ -8,6 +8,7 @@ use crate::{
     config::{Config, STATEMENT},
     error::ApiError,
     models::{Identity, SiweMessageRequest},
+    settings::Settings,
 };
 
 const NONCE_KEY: &str = "nonce";
@@ -114,7 +115,7 @@ pub async fn build_siwe_message(
 
 pub async fn verify_login(
     cfg: &Config,
-    allowlist: &tokio::sync::Mutex<std::collections::HashSet<String>>,
+    settings: &Settings,
     session: &Session,
     raw_message: &str,
     signature_hex: &str,
@@ -164,28 +165,10 @@ pub async fn verify_login(
     let _ = session.remove::<i64>(NONCE_EXP_KEY).await;
 
     let address = Address::from(message.address);
-    let key = address_key(&address);
-    {
-        let mut guard = allowlist.lock().await;
-        if !guard.contains(&key) {
-            let open = cfg.dev_allow_open_admin && cfg.admin_addresses.is_empty() && guard.is_empty();
-            if open {
-                guard.insert(key.clone());
-                let list: Vec<String> = guard.iter().cloned().collect();
-                if let Some(parent) = cfg.allowlist_path.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-                let _ = std::fs::write(
-                    &cfg.allowlist_path,
-                    serde_json::to_vec_pretty(&list).unwrap_or_default(),
-                );
-                tracing::warn!(address = %signinwithethereum::eip55(&message.address), "DEV_ALLOW_OPEN_ADMIN persisted the first signed-in address");
-            } else {
-                return Err(ApiError::Forbidden(
-                    "This address is not on the admin allowlist.".into(),
-                ));
-            }
-        }
+    if !settings.is_admin(&address).await {
+        return Err(ApiError::Forbidden(
+            "This address is not on the admin allowlist. An admin can add it from Settings.".into(),
+        ));
     }
     session
         .cycle_id()

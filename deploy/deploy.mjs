@@ -4,17 +4,31 @@ import { defineChain } from "viem";
 import { readFileSync, writeFileSync, mkdirSync, existsSync, appendFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-const rpcUrl = process.env.RPC_URL ?? "http://127.0.0.1:8545";
-const chainId = Number(process.env.CHAIN_ID ?? "56056");
-const pk = process.env.DEPLOYER_PRIVATE_KEY;
-const outPath = process.env.DEPLOYMENTS_PATH ?? "/data/deployments.json";
-const activityPath = process.env.ACTIVITY_PATH ?? "/data/activity.jsonl";
+const chainId = 56056;
+// Anvil/Hardhat account 0. Test only. Same key the faucet uses.
+const pk = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+const dataRoot = existsSync("/data") ? "/data" : "data";
+const outPath = `${dataRoot}/deployments.json`;
+const activityPath = `${dataRoot}/activity.jsonl`;
 const artifactPath = new URL("./artifacts/pancake-v2.json", import.meta.url);
 
-if (!pk) {
-  console.error("DEPLOYER_PRIVATE_KEY is required");
-  process.exit(1);
+async function pickRpc() {
+  for (const url of ["http://127.0.0.1:8545", "http://host.docker.internal:8545"]) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}',
+      });
+      if (res.ok) return url;
+    } catch {
+      // try the next candidate
+    }
+  }
+  return "http://127.0.0.1:8545";
 }
+
+const rpcUrl = await pickRpc();
 
 const artifacts = JSON.parse(readFileSync(artifactPath, "utf8"));
 const account = privateKeyToAccount(pk.startsWith("0x") ? pk : `0x${pk}`);

@@ -58,7 +58,7 @@ MetaMask 按 chain id 识别网络。本地节点如果广播 56，会和官方 
 | 普通账户 | `0x90F79bf6EB2c4f870365E785982E1f101E93b906` | `0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6` | 有余额，不能登录管理台 |
 | 验证人 | `0x9fB29AAc15b9A4B7F17c3385939b007540f4d791` | `0x9b28f36fbd67381120752d6172ecdcf10e06ab2d9a1367aac00cdcd6ac7855d3` | 出块；默认可登录。节点为了出块会解锁这把钥，RPC 只应留在本机 |
 
-管理台允许名单由 `ADMIN_ADDRESSES` 决定。默认不是“谁先签名谁就是管理员”。`DEV_ALLOW_OPEN_ADMIN` 默认关闭。
+管理台允许名单存在数据卷 `lab-data` 的 `settings.json` 里，启动时写入水龙头账户、Hardhat 1 和验证人。登录后在 Settings 里增减。不是“谁先签名谁就是管理员”。
 
 ## 水龙头
 
@@ -70,7 +70,7 @@ curl -s http://localhost:8080/api/faucet \
   -d '{"address":"0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC","asset":"bnb","amount":"10000"}'
 ```
 
-`asset` 为 `bnb` 或 `lab`。`amount` 是整币数量，单次最多 1,000,000。页面上超过 10,000 会再确认一次。按 IP 限流，默认大约每秒补充 10 次、突发 60 次，只适合本机实验室。
+`asset` 为 `bnb` 或 `lab`。`amount` 是整币数量。默认单次最多 1,000,000，超过 10,000 会再确认一次。这两个数，以及快捷金额和管理员名单，都在管理台 Settings 里改，不靠环境变量。按 IP 限流，只适合本机实验室。
 
 ## PancakeSwap
 
@@ -97,7 +97,9 @@ curl -s http://localhost:8080/api/faucet \
 4. 成功后轮换 session id，把身份放进服务端 session。Cookie 名 `id`，HttpOnly，SameSite=Strict，Path=/，不设 Domain。空闲 12 小时过期。本地 HTTP 不设 Secure。
 5. 签名有效但不在允许名单里返回 403，不建立会话。
 
-变更类的 `/api/auth/*` 和管理接口要求 `Origin` 或 `Referer` 等于 `SIWE_URI`。用 curl 调登录接口时加上 `-H 'Origin: http://localhost:8080'`。
+变更类的 `/api/auth/*` 和管理接口要求 `Origin` 或 `Referer` 等于 `http://localhost:8080`（监听端口若改成别的，domain 跟着端口走）。用 curl 调登录接口时加上 `-H 'Origin: http://localhost:8080'`。
+
+管理服务只读一个环境变量：`LISTEN`，默认 `0.0.0.0:8080`。不需要 `.env`。`./up.sh` 直接 `docker compose up`。本地跑同样的检查用 `./ci.sh`，它不会接到 GitHub。
 
 ## 持久化
 
@@ -105,7 +107,7 @@ curl -s http://localhost:8080/api/faucet \
 | --- | --- | --- |
 | 链数据 | volume `bsc-data` | 保留 |
 | Blockscout Postgres | volume `blockscout-db` | 保留 |
-| 部署地址、水龙头记录 | volume `lab-data` | 保留 |
+| 部署地址、水龙头记录、允许名单、session 密钥 | volume `lab-data` | 保留 |
 | 容器日志副本 | volume `lab-logs` | 保留 |
 | 登录 session | API 进程内存 | 重启管理台后要重新签名 |
 
@@ -118,7 +120,7 @@ curl -s http://localhost:8080/api/faucet \
 - 后端 `ghcr.io/blockscout/blockscout:9.0.2`
 - 前端 `ghcr.io/blockscout/frontend:v2.3.5`
 
-内部交易索引默认关闭（`INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER=true`），避免本地 trace 在第一次启动时拖垮索引器。浏览器仍然显示区块、交易和余额。需要内部交易时在 `.env` 里改成 `false` 再 `./up.sh`。
+内部交易索引在 compose 里关掉了，避免本地 trace 在第一次启动时拖垮索引器。浏览器仍然显示区块、交易和余额。需要内部交易时改 `docker-compose.yml` 里 Blockscout 的那一项再 `./up.sh`。
 
 ## 布局
 
@@ -136,7 +138,9 @@ Chain id 56 is intentionally not used. MetaMask keys networks by chain id, so a 
 
 Upstream go-ethereum is not used: it has neither Parlia nor the BSC precompiles and hardforks. BSC removed `--dev` in v1.5.2, so this lab runs the smallest setup the current client can seal with: one validator from the official dev genesis. Pasteur is active at genesis. Jenner stays in the v1.8.2 binary but is not scheduled, because the official dev system contracts have no payment-lane config and enabling Jenner stops block production at block 9.
 
-The faucet is `POST /api/faucet` with no login. Admin routes use server-built EIP-4361 SIWE (`signinwithethereum` 0.8), an HttpOnly SameSite=Strict session cookie, and an env allowlist. A valid signature from an address that is not on the list is 403.
+The faucet is `POST /api/faucet` with no login. Admin routes use server-built EIP-4361 SIWE (`signinwithethereum` 0.8) and an HttpOnly SameSite=Strict session cookie. The allowlist and faucet limits live in `settings.json` on the lab data volume and are edited from Settings. A valid signature from an address that is not on the list is 403.
+
+The admin process reads one variable, `LISTEN` (default `0.0.0.0:8080`). `./up.sh` does not create or require an env file. `./ci.sh` runs the Rust tests and the console build on your machine. There is no GitHub Actions workflow.
 
 PancakeSwap addresses are written to `/data/deployments.json` in the `lab-data` volume and served at `GET /api/deployments`. Chain data and the Blockscout database survive `./down.sh`. Sessions do not. `./down.sh -v` wipes persisted data.
 

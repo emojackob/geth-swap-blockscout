@@ -5,6 +5,7 @@ import {
   Droplets,
   FileText,
   LayoutDashboard,
+  SlidersHorizontal,
   Menu,
   Moon,
   Repeat2,
@@ -24,6 +25,7 @@ const NAV = [
   { to: "/swap", label: "Swap & Pools", icon: Repeat2 },
   { to: "/contracts", label: "Node & Contracts", icon: Blocks },
   { to: "/logs", label: "Logs", icon: FileText },
+  { to: "/settings", label: "Settings", icon: SlidersHorizontal },
 ] as const;
 
 export function Shell({ children }: { children: React.ReactNode }) {
