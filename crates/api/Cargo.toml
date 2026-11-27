@@ -1,0 +1,36 @@
+[package]
+name = "lab-api"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+alloy = { version = "2.6.1", default-features = false, features = [
+    "providers",
+    "provider-http",
+    "reqwest-rustls-tls",
+    "signer-local",
+    "signers",
+    "sol-types",
+    "rpc-types",
+    "network",
+    "contract",
+] }
+axum = "0.8.9"
+hex = "0.4"
+http = "1"
+iri-string = "0.7"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+signinwithethereum = { version = "0.8.1", features = ["serde", "alloy", "typed-builder"] }
+thiserror = "2"
+time = { version = "0.3", features = ["formatting", "parsing"] }
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.7.1", features = ["cors", "fs", "trace"] }
+tower-sessions = { version = "0.15.0", features = ["memory-store", "signed"] }
+tower_governor = "0.8.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
