@@ -1,0 +1,7 @@
+.env
+target/
+console/node_modules/
+console/dist/
+deploy/node_modules/
+*.log
+data/

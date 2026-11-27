@@ -1,0 +1,11 @@
+{
+  "name": "bsc-lab-deploy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "node deploy.mjs"
+  },
+  "dependencies": {
+    "viem": "^2.21.54"
+  }
+}

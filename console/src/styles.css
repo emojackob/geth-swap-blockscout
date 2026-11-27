@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/IBMPlexSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/IBMPlexSans-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/IBMPlexSans-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/IBMPlexMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/IBMPlexMono-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+html.dark {
+  --bg-canvas: #14110e;
+  --bg-surface: #1c1916;
+  --bg-elevated: #25211c;
+  --bg-muted: #2c2722;
+  --border: #3a342c;
+  --border-strong: #4a4339;
+  --text-primary: #f3ede4;
+  --text-secondary: #b8afa3;
+  --text-tertiary: #8a8278;
+  --accent: #c4a46a;
+  --accent-hover: #d4b57c;
+  --accent-pressed: #b08a3e;
+  --on-accent: #1c1916;
+  --accent-subtle: #2a2418;
+  --success: #8fbc8f;
+  --warning: #d4a054;
+  --danger: #d97868;
+  --info: #7a9e9a;
+  --focus-ring: #c4a46a;
+  --overlay: rgba(20, 17, 14, 0.72);
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+html.light {
+  --bg-canvas: #f4efe7;
+  --bg-surface: #fffcf8;
+  --bg-elevated: #ffffff;
+  --bg-muted: #ebe4d8;
+  --border: #e4dcd0;
+  --border-strong: #c9c0b2;
+  --text-primary: #1c1916;
+  --text-secondary: #5c564e;
+  --text-tertiary: #8a8278;
+  --accent: #c4a46a;
+  --accent-hover: #d4b57c;
+  --accent-pressed: #b08a3e;
+  --accent-text: #6f521f;
+  --on-accent: #1c1916;
+  --accent-subtle: #f3e6c8;
+  --success: #3a5f38;
+  --warning: #7a4e10;
+  --danger: #8f342a;
+  --info: #2f5856;
+  --focus-ring: #6f521f;
+  --overlay: rgba(28, 25, 22, 0.45);
+  --shadow: 0 8px 24px rgba(28, 25, 22, 0.1);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-canvas: var(--bg-canvas);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-muted: var(--bg-muted);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text-primary);
+  --color-ink-soft: var(--text-secondary);
+  --color-ink-faint: var(--text-tertiary);
+  --color-brass: var(--accent);
+  --color-brass-hover: var(--accent-hover);
+  --color-brass-pressed: var(--accent-pressed);
+  --color-on-brass: var(--on-accent);
+  --color-brass-subtle: var(--accent-subtle);
+  --color-ok: var(--success);
+  --color-warn: var(--warning);
+  --color-bad: var(--danger);
+  --color-info: var(--info);
+  --font-sans: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+html.light .panel {
+  border-color: transparent;
+  box-shadow: var(--shadow);
+}
+
+.nums {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+@keyframes lab-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.enter {
+  animation: lab-enter 160ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.enter-late {
+  animation-delay: 36ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter,
+  .enter-late {
+    animation: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .sidebar-desktop {
+    display: none;
+  }
+}
