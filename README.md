@@ -17,12 +17,12 @@
 | Chain ID | **56056** |
 | 原生币 | BNB |
 | Blockscout | http://localhost:4000 （后端直连 http://localhost:4001） |
-| 管理台 | http://localhost:8080 |
-| 水龙头（无需登录） | http://localhost:8080/faucet |
-| 水龙头 API | `POST http://localhost:8080/api/faucet` |
-| 已部署合约 | `GET http://localhost:8080/api/deployments`，文件在 Docker volume `lab-data` 的 `/data/deployments.json` |
+| 管理台 | http://localhost:18080 |
+| 水龙头（无需登录） | http://localhost:18080/faucet |
+| 水龙头 API | `POST http://localhost:18080/api/faucet` |
+| 已部署合约 | `GET http://localhost:18080/api/deployments`，文件在 Docker volume `lab-data` 的 `/data/deployments.json` |
 
-浏览器里的钱包请使用 **http://localhost:8080** 这个源。SIWE 的 domain 是 `localhost:8080`，不要混用 `127.0.0.1`。
+浏览器里的钱包请使用 **http://localhost:18080** 这个源。SIWE 的 domain 是 `localhost:18080`，不要混用 `127.0.0.1`。
 
 容器之间的 Docker 网桥在部分 Linux 上转发不稳定，而且这版客户端把 `0.0.0.0` 绑成只监听 IPv6。所以 RPC 绑在容器自己的 IPv4 地址上，Postgres 和 Redis 也发布到宿主机，其余服务通过 `host.docker.internal` 访问已发布的端口。宿主机上的 RPC 仍然是 http://localhost:8545。
 
@@ -65,7 +65,7 @@ MetaMask 按 chain id 识别网络。本地节点如果广播 56，会和官方 
 `POST /api/faucet` 不需要登录、签名或 API key。
 
 ```bash
-curl -s http://localhost:8080/api/faucet \
+curl -s http://localhost:18080/api/faucet \
   -H 'content-type: application/json' \
   -d '{"address":"0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC","asset":"bnb","amount":"10000"}'
 ```
@@ -97,9 +97,9 @@ curl -s http://localhost:8080/api/faucet \
 4. 成功后轮换 session id，把身份放进服务端 session。Cookie 名 `id`，HttpOnly，SameSite=Strict，Path=/，不设 Domain。空闲 12 小时过期。本地 HTTP 不设 Secure。
 5. 签名有效但不在允许名单里返回 403，不建立会话。
 
-变更类的 `/api/auth/*` 和管理接口要求 `Origin` 或 `Referer` 等于 `http://localhost:8080`（监听端口若改成别的，domain 跟着端口走）。用 curl 调登录接口时加上 `-H 'Origin: http://localhost:8080'`。
+变更类的 `/api/auth/*` 和管理接口要求 `Origin` 或 `Referer` 等于 `http://localhost:18080`（监听端口若改成别的，domain 跟着端口走）。用 curl 调登录接口时加上 `-H 'Origin: http://localhost:18080'`。
 
-管理服务只读一个环境变量：`LISTEN`，默认 `0.0.0.0:8080`。不需要 `.env`。`./up.sh` 直接 `docker compose up`。本地跑同样的检查用 `./ci.sh`，它不会接到 GitHub。
+管理服务只读一个环境变量：`LISTEN`，默认 `0.0.0.0:18080`。不需要 `.env`。`./up.sh` 直接 `docker compose up`。本地跑同样的检查用 `./ci.sh`，它不会接到 GitHub。
 
 ## 持久化
 
@@ -132,7 +132,7 @@ curl -s http://localhost:8080/api/faucet \
 
 ## English
 
-`./up.sh` starts one local stack: official BSC client `ghcr.io/bnb-chain/bsc:1.8.2` as a single Parlia validator, chain id **56056**, PancakeSwap V2, Blockscout at http://localhost:4000, an unauthenticated faucet, and a signature-login admin console at http://localhost:8080.
+`./up.sh` starts one local stack: official BSC client `ghcr.io/bnb-chain/bsc:1.8.2` as a single Parlia validator, chain id **56056**, PancakeSwap V2, Blockscout at http://localhost:4000, an unauthenticated faucet, and a signature-login admin console at http://localhost:18080.
 
 Chain id 56 is intentionally not used. MetaMask keys networks by chain id, so a local node advertising 56 collides with BNB Smart Chain mainnet. No dependency here requires 56. Use the documented test keys only.
 
@@ -140,7 +140,7 @@ Upstream go-ethereum is not used: it has neither Parlia nor the BSC precompiles 
 
 The faucet is `POST /api/faucet` with no login. Admin routes use server-built EIP-4361 SIWE (`signinwithethereum` 0.8) and an HttpOnly SameSite=Strict session cookie. The allowlist and faucet limits live in `settings.json` on the lab data volume and are edited from Settings. A valid signature from an address that is not on the list is 403.
 
-The admin process reads one variable, `LISTEN` (default `0.0.0.0:8080`). `./up.sh` does not create or require an env file. `./ci.sh` runs the Rust tests and the console build on your machine. There is no GitHub Actions workflow.
+The admin process reads one variable, `LISTEN` (default `0.0.0.0:18080`). `./up.sh` does not create or require an env file. `./ci.sh` runs the Rust tests and the console build on your machine. There is no GitHub Actions workflow.
 
 PancakeSwap addresses are written to `/data/deployments.json` in the `lab-data` volume and served at `GET /api/deployments`. Chain data and the Blockscout database survive `./down.sh`. Sessions do not. `./down.sh -v` wipes persisted data.
 
